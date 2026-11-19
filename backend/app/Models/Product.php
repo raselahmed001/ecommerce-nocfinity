@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,11 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'category_id', 'name', 'slug', 'sku', 'description', 'price', 'discount_price',
-        'stock', 'low_stock_threshold', 'sizes', 'colors', 'rating', 'is_active', 'is_featured',
+        'stock', 'low_stock_threshold', 'sizes', 'colors', 'rating', 'reviews_count', 'is_active', 'is_featured',
     ];
 
     protected function casts(): array
@@ -32,6 +33,11 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
     }
 
     public function images(): HasMany

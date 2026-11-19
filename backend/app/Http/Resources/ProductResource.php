@@ -27,6 +27,7 @@ class ProductResource extends JsonResource
             'in_stock' => $this->stock > 0,
             'is_featured' => $this->is_featured,
             'rating' => $this->rating,
+            'reviews_count' => $this->reviews_count,
             'sizes' => $this->sizes ?? [],
             'colors' => $this->colors ?? [],
             'image' => $this->whenLoaded('images', fn () => $this->primaryImageUrl()),
