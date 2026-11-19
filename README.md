@@ -1,8 +1,166 @@
-﻿# Nocfinity E-commerce Test Project
+# SHOP.CO: e-commerce test project
 
-Full-stack e-commerce app: Laravel 12 API + Next.js storefront and admin panel + MySQL 8.
+A working online store with a customer storefront and a permission-based admin panel.
 
-- `backend/`  - Laravel API (Sanctum, RBAC, Stripe test mode)
-- `frontend/` - Next.js (App Router, TypeScript, Tailwind)
+- **Backend:** Laravel 12, Sanctum tokens, Spatie Permission, MySQL 8, Stripe (test mode)
+- **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS. It talks to Laravel only through the JSON API (no Blade pages; Blade is used only for the email template).
+- Niche: clothing (T-shirts, shirts, jeans, shorts, hoodies) in four dress styles (Casual, Formal, Party, Gym). The storefront follows the supplied Figma template (SHOP.CO).
 
-Setup instructions will be added as the project is built.
+```
+backend/    Laravel API
+frontend/   Next.js storefront (/) and admin panel (/admin)
+docs/API.md API reference
+```
+
+## Run it locally
+
+Requirements: PHP 8.2+, Composer, Node 20+, MySQL 8, Mailpit (for emails). With Laragon on Windows all of these are available.
+
+### 1. Backend
+
+```bash
+cd backend
+composer install
+cp .env.example .env            # then check the values below
+php artisan key:generate
+mysql -u root -e "CREATE DATABASE ecommerce CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+php artisan migrate --seed      # tables + demo data
+php artisan storage:link        # for uploaded product images
+php artisan serve --port=8000
+```
+
+Environment variables (`backend/.env`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_URL` | `http://127.0.0.1:8000` | Used to build uploaded image URLs |
+| `FRONTEND_URL` | `http://localhost:3000` | Reset-password links, CORS |
+| `CORS_ALLOWED_ORIGINS` | = `FRONTEND_URL` | Comma separated list of allowed browser origins |
+| `DB_*` | MySQL on 127.0.0.1, db `ecommerce`, user `root` | Database |
+| `MAIL_HOST` / `MAIL_PORT` | `127.0.0.1` / `1025` | Mailpit SMTP |
+| `STRIPE_SECRET` | (empty) | Stripe **test** secret key (`sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | (empty) | Stripe webhook signing secret (`whsec_...`) |
+| `SHOP_SHIPPING_FLAT` | `5.00` | Flat delivery fee |
+| `SHOP_PENDING_ORDER_HOURS` | `24` | Unpaid (pending) orders older than this are cancelled by `orders:expire-pending` |
+| `SANCTUM_EXPIRATION` | `10080` | Minutes until an API token expires (7 days) |
+
+Start Mailpit (Laragon: `E:\laragon\bin\mailpit\...\mailpit.exe`). Inbox: http://127.0.0.1:8025
+
+The seeded pictures are saved with full URLs built from `APP_URL` when the seeders run. If you change `APP_URL` later, run `php artisan migrate:fresh --seed` again.
+
+Optional: a scheduler cancels orders that were never paid. Run `php artisan schedule:work` (or add `php artisan schedule:run` to cron). It runs `orders:expire-pending` every hour.
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local      # set NEXT_PUBLIC_STRIPE_KEY (pk_test_...)
+npm run dev                     # http://localhost:3000
+```
+
+| Variable (`frontend/.env.local`) | Default | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000/api/v1` | Where the Laravel API runs |
+| `NEXT_PUBLIC_STRIPE_KEY` | (empty) | Stripe **publishable** test key (`pk_test_...`). Without it the card form cannot load. |
+
+### 3. Stripe (test mode, no real charges)
+
+1. Create a free Stripe account and copy the **test** keys from https://dashboard.stripe.com/test/apikeys.
+2. Put `sk_test_...` in `backend/.env` (`STRIPE_SECRET`) and `pk_test_...` in `frontend/.env.local` (`NEXT_PUBLIC_STRIPE_KEY`).
+3. Checkout needs both keys; without them a payment cannot be made.
+4. Optional (the app also confirms payments itself, so this is only needed for the webhook path):
+   `stripe listen --forward-to http://127.0.0.1:8000/api/v1/webhooks/stripe` and copy the `whsec_...` value into `STRIPE_WEBHOOK_SECRET`.
+
+Test cards (any future expiry date, any CVC):
+
+| Card | Result |
+|---|---|
+| `4242 4242 4242 4242` | Payment succeeds |
+| `4000 0000 0000 9995` | Declined (insufficient funds) |
+| `4000 0000 0000 0002` | Declined |
+| `4000 0025 0000 3155` | Asks for 3-D Secure |
+
+### Demo accounts (password for all: `Password@123`)
+
+| Role | Email | Sign in at |
+|---|---|---|
+| Super Admin | superadmin@example.com | /admin/login |
+| Admin | admin@example.com | /admin/login |
+| Product Manager | product@example.com | /admin/login |
+| Order Manager | orders@example.com | /admin/login |
+| Support | support@example.com | /admin/login |
+| Customer | customer@example.com (also karim@, nusrat@, tanvir@, sadia@, mehedi@) | /login |
+
+Seeded data: 5 roles and 11 permissions, 4 dress styles + 12 clothing-type categories, 24 products (sizes Small to X-Large, 3 colors each, a star rating, photos from the design, 2 out of stock, 2 low stock), coupons `WELCOME20` (20% off over $50), `FLAT20` ($20 off over $100) and `EXPIRED50` (expired, for testing), and 14 orders in every status.
+Reset everything with `php artisan migrate:fresh --seed`.
+
+### Tests
+
+```bash
+cd backend
+mysql -u root -e "CREATE DATABASE ecommerce_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+php artisan test          # 49 feature tests (Stripe is replaced by a fake gateway)
+cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
+```
+
+## Architecture notes
+
+**Folders.** Laravel keeps controllers thin: a `FormRequest` validates, a service in `app/Services` does the work, a `Resource` shapes the JSON, `ApiResponse` wraps it. Admin code lives in `Services/Admin`, `Http/*/Admin`. Next.js: `app/(store)` is the storefront, `app/admin` the panel, `components/` holds UI, `lib/` the API client, types and helpers.
+
+**Order totals and stock are secured on the server.**
+- The browser only sends product ids and quantities. `CartPricingService` reads prices from the database and calculates everything in integer cents. `/checkout` accepts the shipping address only; fields such as `total` or `price` are ignored (covered by tests).
+- Coupons are checked when applied, when the cart is priced, and again at checkout (active, dates, usage limit, minimum order). An expired coupon is rejected.
+- Stock is **not** reserved at checkout. It is taken only when Stripe confirms payment (`OrderPaymentService`), inside a DB transaction that locks the order row and every product row (`SELECT ... FOR UPDATE`, in id order) and re-reads the stock. If anything sold out meanwhile, the whole order is cancelled, the payment is refunded and the customer gets a clear message. Stock never goes below zero.
+- A payment is accepted only if Stripe says `succeeded` **and** the amount and currency match the order. Confirming twice (API + webhook) is safe: the locked order status makes it idempotent.
+- Cancelling a paid order restores stock and the coupon use and refunds the payment.
+- **Size and color.** The shopper picks a size and a color (validated against the product's own lists). They are saved on the cart line and copied to the order line. Stock is still kept per product, not per size: two cart lines of the same product (e.g. Small and Large) draw from the same stock, and the stock check and the decrement use their total.
+- Order numbers look like `ORD-2026-000123`.
+- Orders that are never paid are cancelled after 24 hours by the scheduled command `orders:expire-pending`. They never held stock, so nothing is restored; a late payment for such an order is refunded automatically.
+
+**RBAC.** Spatie Permission stores roles and permissions. Its pivot tables are renamed in `config/permission.php` to the names in the brief: `role_user` (staff to roles) and `permission_role` (roles to permissions). Routes are protected with `can:<permission>` middleware, never by role name. `Gate::before` lets the Super Admin role through; the Super Admin role cannot be edited or deleted. Staff sign in through their own endpoint (`POST /api/v1/admin/auth/login`) and get a token with the `admin` ability; customers get the `customer` ability. A token of one kind is refused (403) on the other side's routes. Tokens expire after `SANCTUM_EXPIRATION` minutes. The admin UI hides menus and buttons using the permissions returned by `/admin/auth/me`, and a direct URL to a forbidden page shows a permission message. A Super Admin edits roles in a permission matrix page.
+
+**Security checklist.**
+- bcrypt hashing (`BCRYPT_ROUNDS`), strong password policy, generic login error, login throttle (5 failures), rate limits on register, reset and checkout, general API limit of 120/min.
+- Eloquent / bound parameters only; search wildcards are escaped. Validation in FormRequests (backend is the source of truth) and in the forms.
+- XSS: HTML is stripped from names, addresses and descriptions on input, and React escapes everything on output (no `dangerouslySetInnerHTML`).
+- IDOR: customer order queries include the owner, other people's orders return 404. Cart items are looked up only inside the caller's cart.
+- API responses never include password hashes or Stripe secrets (explicit Resources, tested).
+- Security headers on the API (middleware) and on Next.js (`next.config.ts`: CSP, frame, nosniff, referrer, permissions, HSTS). CORS allows only the frontend origin.
+- CSRF: the API uses Bearer tokens and no cookies, so CSRF does not apply.
+- Uploads: real image content, JPG/PNG/WebP, 2 MB, random file names.
+
+**Nothing on the storefront is hard-coded.** Products, categories and prices come from the API, and so does all the other content: the announcement bar, hero text, hero picture and counters, brand strip, customer reviews, footer columns and social links, payment logos, newsletter title and the filter options (sizes, color swatches, price slider end). They live in the `site_settings` table (`GET /api/v1/site`) and are filled by `SiteSettingSeeder`. The hero counters are counted from the database (brands, active products, customers). Changing a row changes the site without a deploy. There is no admin screen for these settings yet.
+
+**Email.** Order status changes (paid, processing, shipped, delivered, cancelled) email the customer through Mailpit. A mail failure is logged and never blocks the status change.
+
+## Bonus items I did
+
+- Feature tests for checkout, stock, order status, RBAC and the admin API (`php artisan test`).
+- Guest cart that survives the browser and is merged into the customer's cart on login or registration.
+- Dark mode toggle in the admin panel.
+
+## Optional items I skipped (and why)
+
+| Item | Reason |
+|---|---|
+| 2FA (TOTP) for admins | Needs a secrets/recovery-code flow; I preferred to finish the required security items properly first. |
+| Email verification | Marked optional in the brief. |
+| Product reviews and ratings, activity logs | Not required; outside the core flows. |
+| Docker one-command setup | The Laragon setup above is simple; Docker would be the next step. |
+| Live demo deployment | Needs hosting accounts. |
+| Staff management page (create staff, assign roles) | The brief lists no such page. Roles are assigned in the seeder. |
+| Admin screen for the storefront content (`site_settings`) | The brief lists no such page; the content is edited in the database or the seeder. |
+| Postman collection | `docs/API.md` covers the API. |
+
+## Known limits and what I would improve
+
+- The storefront was matched to screenshots of the Figma frames (homepage, category with filters, cart, product page; desktop and mobile). Exact fonts are approximated (Archivo Black for headings, Inter for text), and the Product page "All Reviews" block was left out because there is no review feature.
+- The Stripe path was tested against a fake gateway; run a real test payment with your own test keys before the review.
+- Tokens are kept in `localStorage`. An httpOnly-cookie session behind a Next.js route handler would reduce XSS risk.
+- CSP uses `'unsafe-inline'` for scripts (Next.js inline scripts); a nonce would tighten it.
+- The seed photos (`backend/public/seed-images`) were cropped from screenshots of the Figma template, so they are small (about 270 px). Products that are not in the design reuse the photo of the same kind of garment, and the two hoodies still use a `picsum.photos` placeholder. Export the images from Figma at 2x and replace the files for a sharper result.
+- Stock is per product, not per size/color variant. A full variant model (stock per size and color) would be the next step.
+- Overselling is covered by tests that run one request after another plus the database row locks. A test that fires truly parallel requests is not included.
+- The star ratings, the "Our happy customers" texts and the brand strip are template content stored in the database: the shop has no review feature (optional in the brief). The newsletter box validates the email but does not store it.
+- Add frontend tests (Playwright) and a CI pipeline.
