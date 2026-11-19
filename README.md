@@ -199,7 +199,7 @@ Reset everything with `php artisan migrate:fresh --seed`.
 ```bash
 cd backend
 mysql -u root -e "CREATE DATABASE ecommerce_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-php artisan test          # 65+ feature tests (Stripe is replaced by a fake gateway)
+php artisan test          # 70 feature tests (Stripe is replaced by a fake gateway)
 cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 ```
 
