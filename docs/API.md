@@ -90,6 +90,7 @@ Password policy: 8+ characters, upper and lower case, a number and a symbol.
 | Permission | Endpoints |
 |---|---|
 | (any staff) | `GET/PUT /admin/profile`, `GET /admin/auth/me`, `POST /admin/auth/logout` |
+| (any staff) | `POST /admin/two-factor/setup`, `POST /admin/two-factor/confirm {code}`, `POST /admin/two-factor/disable {password, code}` |
 | `reports.view` | `GET /admin/dashboard` |
 | `products.view` | `GET /admin/products` (`q`, `category_id`, `status`, `stock`), `GET /admin/products/{id}`, `GET /admin/categories` (the whole tree; add `page` / `per_page` to get top-level categories page by page) |
 | `products.create` | `POST /admin/products` (multipart; `images[]`). Also takes `sizes[]`, `colors[]` and `rating` (0-5) |
@@ -103,3 +104,7 @@ Password policy: 8+ characters, upper and lower case, a number and a symbol.
 | `roles.manage` | `GET /admin/permissions`, `GET/POST/PUT/DELETE /admin/roles` |
 
 Order status changes allowed for staff: `paid → processing → shipped → delivered`, and `pending/paid/processing → cancelled`. `paid` is only ever set by a real payment.
+
+### Admin 2FA login
+
+If the staff member has 2FA on, `POST /admin/auth/login` returns `{ two_factor_required: true, challenge }` and no token. Send `POST /admin/auth/two-factor-challenge { challenge, code }` to get `{ user, token }`. The challenge lasts 5 minutes and is cancelled after 5 wrong codes.

@@ -10,7 +10,9 @@ interface AdminAuthValue {
   loading: boolean;
   /** Does the signed-in staff member have this permission? Used to show or hide menus and buttons. */
   can: (permission: string) => boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Returns a challenge id when the account uses 2FA and a code is still needed. */
+  login: (email: string, password: string) => Promise<{ challenge: string } | null>;
+  completeTwoFactor: (challenge: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -40,7 +42,19 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api<{ user: User; token: string }>("/admin/auth/login", { method: "POST", body: { email, password } });
+    const res = await api<{ user?: User; token?: string; two_factor_required?: boolean; challenge?: string }>("/admin/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
+    if (res.data.two_factor_required && res.data.challenge) return { challenge: res.data.challenge };
+
+    tokenStore.set("admin", res.data.token!);
+    setUser(res.data.user!);
+    return null;
+  }, []);
+
+  const completeTwoFactor = useCallback(async (challenge: string, code: string) => {
+    const res = await api<{ user: User; token: string }>("/admin/auth/two-factor-challenge", { method: "POST", body: { challenge, code } });
     tokenStore.set("admin", res.data.token);
     setUser(res.data.user);
   }, []);
@@ -60,7 +74,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
-  const value = useMemo(() => ({ user, loading, can, login, logout, setUser }), [user, loading, can, login, logout]);
+  const value = useMemo(() => ({ user, loading, can, login, completeTwoFactor, logout, setUser }), [user, loading, can, login, completeTwoFactor, logout]);
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }

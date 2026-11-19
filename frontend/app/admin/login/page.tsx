@@ -9,13 +9,15 @@ import { ApiError } from "@/lib/api";
 import { checkEmail, clean, isValid, required, type Errors } from "@/lib/validation";
 
 export default function AdminLoginPage() {
-  const { user, loading, login } = useAdminAuth();
+  const { user, loading, login, completeTwoFactor } = useAdminAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (!loading && user) router.replace("/admin");
@@ -30,10 +32,39 @@ export default function AdminLoginPage() {
 
     setBusy(true);
     try {
-      await login(email.trim(), password);
-      router.replace("/admin");
+      const next = await login(email.trim(), password);
+      if (next) {
+        setChallenge(next.challenge);
+        setPassword("");
+      } else router.replace("/admin");
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : "Could not sign in.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setServerError("");
+    if (!/^\d{6}$/.test(code.replace(/\s/g, ""))) {
+      setErrors({ code: "Enter the 6-digit code." });
+      return;
+    }
+    setErrors({});
+
+    setBusy(true);
+    try {
+      await completeTwoFactor(challenge!, code);
+      router.replace("/admin");
+    } catch (e) {
+      const message = e instanceof ApiError ? (e.errors.code?.[0] ?? e.message) : "Could not sign in.";
+      setServerError(message);
+      // After too many tries or an expired sign-in the server drops the challenge: start again.
+      if (/again/i.test(message)) {
+        setChallenge(null);
+        setCode("");
+      }
     } finally {
       setBusy(false);
     }
@@ -46,6 +77,21 @@ export default function AdminLoginPage() {
         <h1 className="mt-1 text-lg font-semibold">Admin sign in</h1>
         <p className="mt-1 text-sm text-neutral-500">For staff only.</p>
 
+        {challenge ? (
+          <form onSubmit={submitCode} className="mt-6 space-y-4" noValidate>
+            <p className="text-sm text-neutral-500">Enter the 6-digit code from your authenticator app.</p>
+            {serverError && <Alert>{serverError}</Alert>}
+            <Field label="Authentication code" htmlFor="code" error={errors.code}>
+              <Input id="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} autoFocus value={code} onChange={(e) => setCode(e.target.value)} invalid={!!errors.code} />
+            </Field>
+            <Button type="submit" shape="rounded" loading={busy} className="w-full">
+              Verify
+            </Button>
+            <button type="button" className="w-full text-center text-sm text-neutral-500 underline" onClick={() => { setChallenge(null); setCode(""); setServerError(""); }}>
+              Back to sign in
+            </button>
+          </form>
+        ) : (
         <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
           {serverError && <Alert>{serverError}</Alert>}
           <Field label="Email" htmlFor="email" error={errors.email}>
@@ -58,6 +104,7 @@ export default function AdminLoginPage() {
             Sign in
           </Button>
         </form>
+        )}
       </div>
     </div>
   );

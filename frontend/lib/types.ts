@@ -89,6 +89,7 @@ export interface User {
   is_staff: boolean;
   roles?: string[];
   permissions?: string[];
+  two_factor_enabled?: boolean;
 }
 
 export type OrderStatus = "pending" | "paid" | "processing" | "shipped" | "delivered" | "cancelled";

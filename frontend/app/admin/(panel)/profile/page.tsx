@@ -4,6 +4,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useState } from "react";
 import { useAdminAuth } from "@/components/admin/AdminAuth";
 import { Card, PageHeader } from "@/components/admin/parts";
+import { TwoFactorCard } from "@/components/admin/TwoFactorCard";
 import { useToast } from "@/components/providers/Toast";
 import { Alert, Badge, Button, Field, Input } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
@@ -101,6 +102,8 @@ export default function ProfilePage() {
             </div>
           </Card>
         </form>
+
+        <TwoFactorCard />
       </div>
     </>
   );

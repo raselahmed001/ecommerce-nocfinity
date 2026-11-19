@@ -120,6 +120,8 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 
 **RBAC.** Spatie Permission stores roles and permissions. Its pivot tables are renamed in `config/permission.php` to the names in the brief: `role_user` (staff to roles) and `permission_role` (roles to permissions). Routes are protected with `can:<permission>` middleware, never by role name. `Gate::before` lets the Super Admin role through; the Super Admin role cannot be edited or deleted. Staff sign in through their own endpoint (`POST /api/v1/admin/auth/login`) and get a token with the `admin` ability; customers get the `customer` ability. A token of one kind is refused (403) on the other side's routes. Tokens expire after `SANCTUM_EXPIRATION` minutes. The admin UI hides menus and buttons using the permissions returned by `/admin/auth/me`, and a direct URL to a forbidden page shows a permission message. A Super Admin edits roles in a permission matrix page.
 
+**2FA (TOTP).** `TotpService` is a small RFC 6238 implementation (HMAC-SHA1, 30 s, 6 digits; checked against the RFC test vector). The secret is stored encrypted and never returned by the API after setup. When a staff member with 2FA logs in, `POST /admin/auth/login` returns `two_factor_required` and a 5-minute challenge id, not a token. `POST /admin/auth/two-factor-challenge` exchanges challenge + code for the token. A challenge dies after 5 wrong codes, and a code can be used only once. Turning 2FA off needs the password and a current code. Recovery codes are not implemented: a locked-out staff member needs a Super Admin or a database reset of `two_factor_secret`.
+
 **Security checklist.**
 - bcrypt hashing (`BCRYPT_ROUNDS`), strong password policy, generic login error, login throttle (5 failures), rate limits on register, reset and checkout, general API limit of 120/min.
 - Eloquent / bound parameters only; search wildcards are escaped. Validation in FormRequests (backend is the source of truth) and in the forms.
@@ -139,12 +141,12 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 - Feature tests for checkout, stock, order status, RBAC and the admin API (`php artisan test`).
 - Guest cart that survives the browser and is merged into the customer's cart on login or registration.
 - Dark mode toggle in the admin panel.
+- 2FA (TOTP) for admin accounts: set up from the profile page with any authenticator app. The password step returns a short-lived challenge instead of a token; the token is issued only after a valid code (see below).
 
 ## Optional items I skipped (and why)
 
 | Item | Reason |
 |---|---|
-| 2FA (TOTP) for admins | Needs a secrets/recovery-code flow; I preferred to finish the required security items properly first. |
 | Email verification | Marked optional in the brief. |
 | Product reviews and ratings, activity logs | Not required; outside the core flows. |
 | Docker one-command setup | The Laragon setup above is simple; Docker would be the next step. |
