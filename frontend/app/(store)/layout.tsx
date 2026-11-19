@@ -3,6 +3,7 @@ import { CustomerAuthProvider } from "@/components/providers/CustomerAuth";
 import { ToastProvider } from "@/components/providers/Toast";
 import { Footer } from "@/components/store/Footer";
 import { Header } from "@/components/store/Header";
+import { VerifyEmailBanner } from "@/components/store/VerifyEmailBanner";
 import { getCategories, getSite } from "@/lib/server-data";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     <ToastProvider>
       <CustomerAuthProvider>
         <CartProvider>
+          <VerifyEmailBanner />
           <Header categories={categories} site={site} />
           <main className="flex-1">{children}</main>
           <Footer site={site} />

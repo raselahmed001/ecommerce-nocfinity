@@ -100,7 +100,7 @@ Reset everything with `php artisan migrate:fresh --seed`.
 ```bash
 cd backend
 mysql -u root -e "CREATE DATABASE ecommerce_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-php artisan test          # 49 feature tests (Stripe is replaced by a fake gateway)
+php artisan test          # 65+ feature tests (Stripe is replaced by a fake gateway)
 cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 ```
 
@@ -141,19 +141,20 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 - Feature tests for checkout, stock, order status, RBAC and the admin API (`php artisan test`).
 - Guest cart that survives the browser and is merged into the customer's cart on login or registration.
 - Dark mode toggle in the admin panel.
+- Email verification: registration sends a signed link (Mailpit). Unverified customers can browse and use the cart, but cannot pay or review until they verify. The link goes to the API, marks the email verified and redirects to `/login?verified=1`. A mail server problem is logged and never blocks registration.
+- Product reviews and ratings: only customers who bought the product (paid order, not cancelled) and have a verified email can review, one review per product (a second one replaces the first). Text has HTML removed and is shown escaped. The product's `rating` and `reviews_count` are recalculated on every change. Staff with `reviews.manage` can delete reviews in the admin panel.
+- Activity logs: every staff create / update / delete on products, categories, coupons and roles, every order status change, staff sign-in and 2FA changes are written to `activity_logs` (who, what, IP, changed fields). The log is read-only through the API and shown on the admin "Activity log" page for staff with `activity.view`. Customer actions are not logged.
+- Postman collection: `docs/SHOP.CO.postman_collection.json` (66 requests; login requests save the token into variables).
 - 2FA (TOTP) for admin accounts: set up from the profile page with any authenticator app. The password step returns a short-lived challenge instead of a token; the token is issued only after a valid code (see below).
 
 ## Optional items I skipped (and why)
 
 | Item | Reason |
 |---|---|
-| Email verification | Marked optional in the brief. |
-| Product reviews and ratings, activity logs | Not required; outside the core flows. |
 | Docker one-command setup | The Laragon setup above is simple; Docker would be the next step. |
 | Live demo deployment | Needs hosting accounts. |
 | Staff management page (create staff, assign roles) | The brief lists no such page. Roles are assigned in the seeder. |
 | Admin screen for the storefront content (`site_settings`) | The brief lists no such page; the content is edited in the database or the seeder. |
-| Postman collection | `docs/API.md` covers the API. |
 
 ## Known limits and what I would improve
 
@@ -164,5 +165,5 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 - The seed photos (`backend/public/seed-images`) were cropped from screenshots of the Figma template, so they are small (about 270 px). Products that are not in the design reuse the photo of the same kind of garment, and the two hoodies still use a `picsum.photos` placeholder. Export the images from Figma at 2x and replace the files for a sharper result.
 - Stock is per product, not per size/color variant. A full variant model (stock per size and color) would be the next step.
 - Overselling is covered by tests that run one request after another plus the database row locks. A test that fires truly parallel requests is not included.
-- The star ratings, the "Our happy customers" texts and the brand strip are template content stored in the database: the shop has no review feature (optional in the brief). The newsletter box validates the email but does not store it.
+- The star ratings, the "Our happy customers" texts and the brand strip are template content stored in the database: the "Our happy customers" block on the home page is template content, while the product page reviews are real. The newsletter box validates the email but does not store it.
 - Add frontend tests (Playwright) and a CI pipeline.

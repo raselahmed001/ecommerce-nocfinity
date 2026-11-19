@@ -22,6 +22,8 @@ const NAV: NavItem[] = [
   { href: "/admin/orders", label: "Orders", permission: "orders.view", icon: "M6 3h12l2 4v14H4V7l2-4zM4 7h16M9 11h6" },
   { href: "/admin/coupons", label: "Coupons", permission: "coupons.manage", icon: "M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3v3zM13 6v12" },
   { href: "/admin/customers", label: "Customers", permission: "customers.view", icon: "M16 11a4 4 0 1 0-8 0M4 21c1-4 4-6 8-6s7 2 8 6" },
+  { href: "/admin/reviews", label: "Reviews", permission: "reviews.manage", icon: "m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" },
+  { href: "/admin/activity", label: "Activity log", permission: "activity.view", icon: "M4 5h16M4 12h16M4 19h10" },
   { href: "/admin/roles", label: "Roles & permissions", permission: "roles.manage", icon: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" },
   { href: "/admin/profile", label: "My profile", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6" },
 ];

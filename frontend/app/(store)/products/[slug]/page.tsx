@@ -5,6 +5,7 @@ import { AddToCart } from "@/components/store/AddToCart";
 import { Gallery } from "@/components/store/Gallery";
 import { Price } from "@/components/store/Price";
 import { ProductGrid } from "@/components/store/ProductCard";
+import { Reviews } from "@/components/store/Reviews";
 import { Stars } from "@/components/store/Stars";
 import { ApiError, api } from "@/lib/api";
 import { getSite } from "@/lib/server-data";
@@ -92,6 +93,8 @@ export default async function ProductPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      <Reviews slug={product.slug} />
 
       {related.length > 0 && (
         <section className="mt-20" aria-labelledby="related">

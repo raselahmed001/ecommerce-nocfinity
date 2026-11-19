@@ -47,6 +47,7 @@ export interface ProductSummary {
   in_stock: boolean;
   is_featured: boolean;
   rating: string | null;
+  reviews_count?: number;
   sizes: string[];
   colors: string[];
   image: string | null;
@@ -86,6 +87,7 @@ export interface User {
   name: string;
   email: string;
   phone: string | null;
+  email_verified?: boolean;
   is_staff: boolean;
   roles?: string[];
   permissions?: string[];
@@ -235,4 +237,48 @@ export interface Dashboard {
   stats: { todays_orders: number; todays_revenue: Money; total_customers: number; low_stock_count: number };
   sales_chart: { date: string; orders: number; revenue: Money }[];
   recent_orders: AdminOrder[];
+}
+
+export interface Review {
+  id: number;
+  rating: number;
+  title: string | null;
+  body: string;
+  author: string;
+  created_at: string;
+}
+
+export interface ReviewSummary {
+  average: string | null;
+  count: number;
+  distribution: Record<string, number>;
+}
+
+export interface ReviewViewer {
+  has_purchased: boolean;
+  email_verified: boolean;
+  can_review: boolean;
+  review: Review | null;
+}
+
+export interface AdminReview {
+  id: number;
+  rating: number;
+  title: string | null;
+  body: string;
+  customer?: { id: number; name: string; email: string };
+  product?: { id: number; name: string; slug: string };
+  created_at: string;
+}
+
+export interface ActivityLog {
+  id: number;
+  action: string;
+  description: string;
+  user: { id: number; name: string } | null;
+  subject_type: string | null;
+  subject_id: number | null;
+  properties: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
 }

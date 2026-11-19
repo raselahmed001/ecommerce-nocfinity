@@ -13,7 +13,9 @@ import { checkEmail, clean, isValid, required, type Errors } from "@/lib/validat
 function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next"));
+  const params = useSearchParams();
+  const next = safeNext(params.get("next"));
+  const verified = params.get("verified");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
@@ -41,6 +43,8 @@ function LoginForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5" noValidate>
+      {verified === "1" && <Alert tone="success">Your email address is verified. You can sign in now.</Alert>}
+      {verified === "invalid" && <Alert>This verification link is not valid. Sign in and ask for a new email.</Alert>}
       {serverError && <Alert>{serverError}</Alert>}
       <Field label="Email" htmlFor="email" error={errors.email}>
         <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} invalid={!!errors.email} />

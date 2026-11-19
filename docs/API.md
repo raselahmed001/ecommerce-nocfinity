@@ -81,6 +81,7 @@ Password policy: 8+ characters, upper and lower case, a number and a symbol.
 |---|---|---|
 | POST | `/checkout` | Body is the shipping address only (`name`, `phone`, `address_line1`, `address_line2?`, `city`, `state?`, `postal_code`, `country`). Creates a **pending** order and a Stripe PaymentIntent. Returns `order_number`, `total`, `client_secret`. |
 | POST | `/checkout/confirm` | `order_number`. Asks Stripe for the real payment status, then marks the order paid and takes stock. 402 if not paid, 409 if an item sold out (payment is refunded). |
+| GET | `/products/{slug}/reviews` | Public, paginated. Adds `summary` (average, count, stars) and, with a customer token, `viewer` (`can_review`, own review) |
 | GET | `/orders` | Own orders, paginated |
 | GET | `/orders/{order_number}` | 404 for anyone else's order |
 | POST | `/webhooks/stripe` | Called by Stripe. Verified by signature. |
@@ -92,6 +93,8 @@ Password policy: 8+ characters, upper and lower case, a number and a symbol.
 | (any staff) | `GET/PUT /admin/profile`, `GET /admin/auth/me`, `POST /admin/auth/logout` |
 | (any staff) | `POST /admin/two-factor/setup`, `POST /admin/two-factor/confirm {code}`, `POST /admin/two-factor/disable {password, code}` |
 | `reports.view` | `GET /admin/dashboard` |
+| `reviews.manage` | `GET /admin/reviews` (`q`), `DELETE /admin/reviews/{id}` |
+| `activity.view` | `GET /admin/activity-logs` (`q`, `action` prefix such as `product`), read-only |
 | `products.view` | `GET /admin/products` (`q`, `category_id`, `status`, `stock`), `GET /admin/products/{id}`, `GET /admin/categories` (the whole tree; add `page` / `per_page` to get top-level categories page by page) |
 | `products.create` | `POST /admin/products` (multipart; `images[]`). Also takes `sizes[]`, `colors[]` and `rating` (0-5) |
 | `products.edit` | `PUT /admin/products/{id}`, `POST /admin/products/{id}/images`, `PATCH /admin/products/{id}/images/{image}/primary`, `DELETE /admin/products/{id}/images/{image}` |
@@ -108,3 +111,11 @@ Order status changes allowed for staff: `paid → processing → shipped → del
 ### Admin 2FA login
 
 If the staff member has 2FA on, `POST /admin/auth/login` returns `{ two_factor_required: true, challenge }` and no token. Send `POST /admin/auth/two-factor-challenge { challenge, code }` to get `{ user, token }`. The challenge lasts 5 minutes and is cancelled after 5 wrong codes.
+
+### Email verification and reviews
+
+- Registration emails a signed link to `GET /auth/email/verify/{id}/{hash}`; it verifies the email and redirects to the storefront login page. `POST /auth/email/resend` (customer token) sends a new one.
+- `POST /checkout`, `POST /checkout/confirm` and `POST /products/{slug}/reviews` need a verified email (403 otherwise).
+- `POST /products/{slug}/reviews {rating 1-5, title?, body}` is for customers who bought the product (403 otherwise). A second call updates the review. `DELETE /products/{slug}/reviews` removes it.
+
+A Postman collection with every endpoint is in `docs/SHOP.CO.postman_collection.json`.
