@@ -1,6 +1,8 @@
 import { cartTokenStore, tokenStore, type TokenScope } from "./storage";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+// Server-rendered pages may need another address than the browser (e.g. a Docker service name).
+const SERVER_API_URL = process.env.API_INTERNAL_URL ?? API_URL;
 
 export interface ApiMeta {
   current_page: number;
@@ -49,7 +51,7 @@ interface Options {
 }
 
 function buildUrl(path: string, query?: Query): string {
-  const url = new URL(API_URL + path);
+  const url = new URL((typeof window === "undefined" ? SERVER_API_URL : API_URL) + path);
   Object.entries(query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   });

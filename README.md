@@ -16,9 +16,11 @@ docs/       API.md (API reference) and a Postman collection
 
 ### What to install first
 
+**Shortest way:** install only [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run `docker compose up --build` (see "Option A: Docker" below). The list here is for running without Docker.
+
 | Tool | Version | Notes |
 |---|---|---|
-| PHP | 8.2 or newer | Extensions: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `gd` (all included in Laragon) |
+| PHP | 8.3 or newer | Extensions: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `gd` (all included in Laragon) |
 | Composer | 2.x | https://getcomposer.org |
 | Node.js + npm | 20 or newer | https://nodejs.org |
 | MySQL | 8 | Laragon includes it. Any MySQL 8 server works. |
@@ -84,9 +86,36 @@ Coupons to try in the cart: `WELCOME20` (20% off over $50), `FLAT20` ($20 off ov
 
 ## Run it locally
 
-Requirements: PHP 8.2+, Composer, Node 20+, MySQL 8, Mailpit (for emails). With Laragon on Windows all of these are available.
+### Option A: Docker (one command)
 
-### 1. Backend
+Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine with Compose). You do not need PHP, Node, MySQL or Mailpit on your machine.
+
+```bash
+docker compose up --build
+```
+
+The first run takes a few minutes (it builds the images, creates the tables and loads the demo data). When the log shows `API ready`, open:
+
+| What | URL |
+|---|---|
+| Storefront | http://localhost:3000 |
+| Admin panel | http://localhost:3000/admin/login |
+| API | http://127.0.0.1:8000/api/v1 |
+| Mailpit inbox | http://127.0.0.1:8025 |
+
+Logins are in the table below. Stop with `Ctrl+C`; `docker compose down` removes the containers and `docker compose down -v` also deletes the database.
+
+Ports 3000, 8000, 8025, 1025 must be free (stop any local `php artisan serve` / `npm run dev` first).
+
+To pay at checkout, copy `.env.example` to `.env` in the project root, fill in your Stripe **test** keys, and run `docker compose up --build` again (the publishable key is built into the frontend). Without keys the whole shop works except the payment step.
+
+What runs: `db` (MySQL 8), `mailpit`, `backend` (Laravel, `backend/Dockerfile`) and `frontend` (Next.js production build, `frontend/Dockerfile`). The APP_KEY in `docker-compose.yml` is a demo key; use your own for anything real.
+
+### Option B: run it directly on your machine
+
+Requirements: PHP 8.3+, Composer, Node 20+, MySQL 8, Mailpit (for emails). With Laragon on Windows all of these are available.
+
+#### 1. Backend
 
 ```bash
 cd backend
@@ -120,7 +149,7 @@ The seeded pictures are saved with full URLs built from `APP_URL` when the seede
 
 Optional: a scheduler cancels orders that were never paid. Run `php artisan schedule:work` (or add `php artisan schedule:run` to cron). It runs `orders:expire-pending` every hour.
 
-### 2. Frontend
+#### 2. Frontend
 
 ```bash
 cd frontend
@@ -134,7 +163,7 @@ npm run dev                     # http://localhost:3000
 | `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000/api/v1` | Where the Laravel API runs |
 | `NEXT_PUBLIC_STRIPE_KEY` | (empty) | Stripe **publishable** test key (`pk_test_...`). Without it the card form cannot load. |
 
-### 3. Stripe (test mode, no real charges)
+### Stripe (test mode, no real charges)
 
 1. Create a free Stripe account and copy the **test** keys from https://dashboard.stripe.com/test/apikeys.
 2. Put `sk_test_...` in `backend/.env` (`STRIPE_SECRET`) and `pk_test_...` in `frontend/.env.local` (`NEXT_PUBLIC_STRIPE_KEY`).
@@ -214,6 +243,7 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 - Email verification: registration sends a signed link (Mailpit). Unverified customers can browse and use the cart, but cannot pay or review until they verify. The link goes to the API, marks the email verified and redirects to `/login?verified=1`. A mail server problem is logged and never blocks registration.
 - Product reviews and ratings: only customers who bought the product (paid order, not cancelled) and have a verified email can review, one review per product (a second one replaces the first). Text has HTML removed and is shown escaped. The product's `rating` and `reviews_count` are recalculated on every change. Staff with `reviews.manage` can delete reviews in the admin panel.
 - Activity logs: every staff create / update / delete on products, categories, coupons and roles, every order status change, staff sign-in and 2FA changes are written to `activity_logs` (who, what, IP, changed fields). The log is read-only through the API and shown on the admin "Activity log" page for staff with `activity.view`. Customer actions are not logged.
+- Docker: `docker compose up --build` starts MySQL, Mailpit, the API and the storefront with demo data.
 - Postman collection: `docs/SHOP.CO.postman_collection.json` (66 requests; login requests save the token into variables).
 - 2FA (TOTP) for admin accounts: set up from the profile page with any authenticator app. The password step returns a short-lived challenge instead of a token; the token is issued only after a valid code (see below).
 
@@ -221,7 +251,6 @@ cd ../frontend && npm run lint && npx tsc --noEmit && npm run build
 
 | Item | Reason |
 |---|---|
-| Docker one-command setup | The Laragon setup above is simple; Docker would be the next step. |
 | Live demo deployment | Needs hosting accounts. |
 | Staff management page (create staff, assign roles) | The brief lists no such page. Roles are assigned in the seeder. |
 | Admin screen for the storefront content (`site_settings`) | The brief lists no such page; the content is edited in the database or the seeder. |
