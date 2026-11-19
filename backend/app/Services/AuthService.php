@@ -30,6 +30,8 @@ class AuthService
         // is_staff is not mass assignable, so a customer can never register as staff.
         $user = User::create($data)->refresh(); // refresh loads DB defaults such as is_staff = false
 
+        $this->sendVerificationEmail($user);
+
         return [$user, $this->issueToken($user, self::ABILITY_CUSTOMER)];
     }
 
@@ -67,6 +69,16 @@ class AuthService
         $ability = $staff ? self::ABILITY_ADMIN : self::ABILITY_CUSTOMER;
 
         return [$user, $this->issueToken($user, $ability)];
+    }
+
+    /** A mail server problem is logged but must never stop a registration. */
+    public function sendVerificationEmail(User $user): void
+    {
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Revoke only the token used for this request. */

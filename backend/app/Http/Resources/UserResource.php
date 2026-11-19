@@ -19,6 +19,7 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'email_verified' => $this->hasVerifiedEmail(),
             'is_staff' => $this->is_staff,
             'two_factor_enabled' => $this->when($this->is_staff, fn () => $this->hasTwoFactorEnabled()),
             // The admin UI uses these to show or hide menus and buttons.
