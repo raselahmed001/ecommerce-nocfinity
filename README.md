@@ -9,8 +9,78 @@ A working online store with a customer storefront and a permission-based admin p
 ```
 backend/    Laravel API
 frontend/   Next.js storefront (/) and admin panel (/admin)
-docs/API.md API reference
+docs/       API.md (API reference) and a Postman collection
 ```
+
+## Quick start
+
+### What to install first
+
+| Tool | Version | Notes |
+|---|---|---|
+| PHP | 8.2 or newer | Extensions: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `gd` (all included in Laragon) |
+| Composer | 2.x | https://getcomposer.org |
+| Node.js + npm | 20 or newer | https://nodejs.org |
+| MySQL | 8 | Laragon includes it. Any MySQL 8 server works. |
+| Mailpit | any | Catches the emails (password reset, verification, order status). Laragon includes it. https://mailpit.axllent.org |
+| Stripe account | free, test mode | Only needed to pay at checkout (see "Stripe" below) |
+
+On Windows the easiest way is [Laragon](https://laragon.org) (PHP, Composer, MySQL and Mailpit in one installer) plus Node.js.
+
+### Start everything (after the setup steps below)
+
+Use three terminals, or two if you skip Mailpit:
+
+```bash
+# 1. Backend API
+cd backend
+php artisan serve --port=8000
+
+# 2. Frontend
+cd frontend
+npm run dev
+
+# 3. Mailpit (Laragon: start it from the menu, or run mailpit.exe)
+```
+
+MySQL must be running too.
+
+| What | URL |
+|---|---|
+| Storefront | http://localhost:3000 |
+| Customer login | http://localhost:3000/login |
+| Admin panel login | http://localhost:3000/admin/login |
+| Backend API (base URL) | http://127.0.0.1:8000/api/v1 |
+| Mailpit inbox (all emails) | http://127.0.0.1:8025 |
+
+### Login accounts
+
+Every account has the same password: **`Password@123`**. They are created by `php artisan migrate --seed`.
+
+Admin panel (sign in at http://localhost:3000/admin/login):
+
+| Role | Email | Can do |
+|---|---|---|
+| Super Admin | `superadmin@example.com` | Everything, including roles and permissions. Cannot be edited. |
+| Admin | `admin@example.com` | Everything except roles and permissions |
+| Product Manager | `product@example.com` | Products, categories, reviews |
+| Order Manager | `orders@example.com` | Orders, customers, dashboard |
+| Support | `support@example.com` | View orders, customers and products; moderate reviews |
+
+Customers (sign in at http://localhost:3000/login):
+
+| Name | Email |
+|---|---|
+| Rahim Uddin | `customer@example.com` |
+| Karim Hasan | `karim@example.com` |
+| Nusrat Jahan | `nusrat@example.com` |
+| Tanvir Ahmed | `tanvir@example.com` |
+| Sadia Islam | `sadia@example.com` |
+| Mehedi Hasan | `mehedi@example.com` |
+
+The seeded customers already have a verified email. A customer who registers on the site gets a verification email in Mailpit and must click the link before paying or writing a review.
+
+Coupons to try in the cart: `WELCOME20` (20% off over $50), `FLAT20` ($20 off over $100), `EXPIRED50` (expired, must be rejected).
 
 ## Run it locally
 
@@ -81,7 +151,7 @@ Test cards (any future expiry date, any CVC):
 | `4000 0000 0000 0002` | Declined |
 | `4000 0025 0000 3155` | Asks for 3-D Secure |
 
-### Demo accounts (password for all: `Password@123`)
+### Demo accounts (details are in "Quick start" above)
 
 | Role | Email | Sign in at |
 |---|---|---|
