@@ -5,14 +5,16 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Services\AuthService;
+use App\Services\TwoFactorService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminAuthController extends Controller
 {
-    public function __construct(private readonly AuthService $auth) {}
+    public function __construct(private readonly AuthService $auth, private readonly TwoFactorService $twoFactor) {}
 
     public function login(LoginRequest $request): JsonResponse
     {
@@ -21,6 +23,27 @@ class AdminAuthController extends Controller
             $request->validated('password'),
             staff: true,
             throttleKey: $request->throttleKey(),
+        );
+
+        // Password was right but this account uses 2FA: no token yet, only a challenge.
+        if ($token === null) {
+            return ApiResponse::success([
+                'two_factor_required' => true,
+                'challenge' => $this->twoFactor->startChallenge($user),
+            ], 'Enter the code from your authenticator app.');
+        }
+
+        return ApiResponse::success([
+            'user' => new UserResource($user),
+            'token' => $token,
+        ], 'Login successful.');
+    }
+
+    public function twoFactorChallenge(TwoFactorChallengeRequest $request): JsonResponse
+    {
+        [$user, $token] = $this->twoFactor->completeChallenge(
+            $request->validated('challenge'),
+            $request->validated('code'),
         );
 
         return ApiResponse::success([

@@ -40,7 +40,13 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
     ];
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_secret !== null && $this->two_factor_confirmed_at !== null;
+    }
 
     public function orders(): HasMany
     {
@@ -59,6 +65,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_staff' => 'boolean',
             'is_active' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 }

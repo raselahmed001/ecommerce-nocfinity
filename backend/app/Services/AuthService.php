@@ -38,7 +38,9 @@ class AuthService
      * A wrong email, wrong password, wrong user type and inactive account
      * all give the same generic error.
      *
-     * @return array{0: User, 1: string}
+     * The token is null when the staff member has 2FA on: they must still send a code.
+     *
+     * @return array{0: User, 1: ?string}
      */
     public function login(string $email, string $password, bool $staff, string $throttleKey): array
     {
@@ -57,6 +59,10 @@ class AuthService
         }
 
         RateLimiter::clear($throttleKey);
+
+        if ($staff && $user->hasTwoFactorEnabled()) {
+            return [$user, null];
+        }
 
         $ability = $staff ? self::ABILITY_ADMIN : self::ABILITY_CUSTOMER;
 
@@ -95,7 +101,7 @@ class AuthService
         }
     }
 
-    private function issueToken(User $user, string $ability): string
+    public function issueToken(User $user, string $ability): string
     {
         return $user->createToken($ability, [$ability])->plainTextToken;
     }

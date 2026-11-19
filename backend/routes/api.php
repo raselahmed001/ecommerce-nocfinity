@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\PermissionController;
 use App\Http\Controllers\Api\V1\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\V1\Admin\ProfileController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
+use App\Http\Controllers\Api\V1\Admin\TwoFactorController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
@@ -68,6 +69,7 @@ Route::prefix('v1')->group(function () {
     // ---- Admin / staff auth (separate login and separate token ability) ----
     Route::prefix('admin/auth')->group(function () {
         Route::post('login', [AdminAuthController::class, 'login']);
+        Route::post('two-factor-challenge', [AdminAuthController::class, 'twoFactorChallenge'])->middleware('throttle:10,1');
 
         Route::middleware(['auth:sanctum', 'abilities:admin'])->group(function () {
             Route::post('logout', [AdminAuthController::class, 'logout']);
@@ -83,6 +85,11 @@ Route::prefix('v1')->group(function () {
         // Any signed-in staff member can see and edit their own profile.
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'update']);
+
+        // Two-factor authentication (TOTP) for the signed-in staff member.
+        Route::post('two-factor/setup', [TwoFactorController::class, 'setup'])->middleware('throttle:10,1');
+        Route::post('two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:10,1');
+        Route::post('two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:10,1');
 
         Route::get('dashboard', DashboardController::class)->middleware('can:reports.view');
 
