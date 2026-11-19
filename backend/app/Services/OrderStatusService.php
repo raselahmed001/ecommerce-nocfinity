@@ -73,6 +73,8 @@ class OrderStatusService
 
         OrderStatusChanged::dispatch($order, $from, $to);
 
+        app(\App\Services\ActivityLogger::class)->log('order.status_changed', "Order {$order->order_number}: {$from} to {$to}", $order, ['from' => $from, 'to' => $to]);
+
         return $order;
     }
 

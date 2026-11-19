@@ -56,6 +56,7 @@ class RoleService
         return DB::transaction(function () use ($data) {
             $role = Role::create(['name' => $data['name'], 'guard_name' => self::GUARD]);
             $role->syncPermissions($data['permissions']);
+            app(\App\Services\ActivityLogger::class)->log('role.created', "Created role \"{$role->name}\"", $role, ['permissions' => $data['permissions']]);
 
             return $this->fresh($role);
         });
@@ -69,6 +70,7 @@ class RoleService
         return DB::transaction(function () use ($role, $data) {
             $role->update(['name' => $data['name']]);
             $role->syncPermissions($data['permissions']);
+            app(\App\Services\ActivityLogger::class)->log('role.updated', "Updated role \"{$role->name}\"", $role, ['permissions' => $data['permissions']]);
 
             return $this->fresh($role);
         });
@@ -83,6 +85,7 @@ class RoleService
             throw new ConflictHttpException("This role is assigned to {$users} staff member(s). Reassign them first.");
         }
 
+        app(\App\Services\ActivityLogger::class)->log('role.deleted', "Deleted role \"{$role->name}\"", $role);
         $role->delete();
     }
 

@@ -40,6 +40,7 @@ class TwoFactorService
         }
 
         $user->forceFill(['two_factor_confirmed_at' => now()])->save();
+        app(\App\Services\ActivityLogger::class)->log('auth.two_factor_enabled', 'Turned on two-factor authentication', null, [], $user);
     }
 
     /** Turning 2FA off needs the password and a current code. */
@@ -54,6 +55,7 @@ class TwoFactorService
         }
 
         $user->forceFill(['two_factor_secret' => null, 'two_factor_confirmed_at' => null])->save();
+        app(\App\Services\ActivityLogger::class)->log('auth.two_factor_disabled', 'Turned off two-factor authentication', null, [], $user);
     }
 
     /** Password was right but a code is still needed: hand out a short-lived challenge id. */

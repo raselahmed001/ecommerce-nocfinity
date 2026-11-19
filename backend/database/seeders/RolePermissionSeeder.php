@@ -17,6 +17,8 @@ class RolePermissionSeeder extends Seeder
         'coupons.manage',
         'customers.view',
         'reports.view',
+        'reviews.manage',
+        'activity.view',
         'roles.manage',
     ];
 
@@ -35,13 +37,13 @@ class RolePermissionSeeder extends Seeder
             'Admin' => array_values(array_diff(self::PERMISSIONS, ['roles.manage'])),
             'Product Manager' => [
                 'products.view', 'products.create', 'products.edit', 'products.delete',
-                'categories.manage',
+                'categories.manage', 'reviews.manage',
             ],
             'Order Manager' => [
                 'orders.view', 'orders.update_status', 'customers.view', 'reports.view',
             ],
             'Support' => [
-                'orders.view', 'customers.view', 'products.view',
+                'orders.view', 'customers.view', 'products.view', 'reviews.manage',
             ],
         ];
 

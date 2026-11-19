@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Requests\Auth\TwoFactorChallengeRequest;
+use App\Services\ActivityLogger;
 use App\Services\AuthService;
 use App\Services\TwoFactorService;
 use App\Support\ApiResponse;
@@ -14,7 +15,7 @@ use Illuminate\Http\Request;
 
 class AdminAuthController extends Controller
 {
-    public function __construct(private readonly AuthService $auth, private readonly TwoFactorService $twoFactor) {}
+    public function __construct(private readonly AuthService $auth, private readonly TwoFactorService $twoFactor, private readonly ActivityLogger $log) {}
 
     public function login(LoginRequest $request): JsonResponse
     {
@@ -33,6 +34,8 @@ class AdminAuthController extends Controller
             ], 'Enter the code from your authenticator app.');
         }
 
+        $this->log->log('auth.login', 'Signed in', null, [], $user);
+
         return ApiResponse::success([
             'user' => new UserResource($user),
             'token' => $token,
@@ -45,6 +48,8 @@ class AdminAuthController extends Controller
             $request->validated('challenge'),
             $request->validated('code'),
         );
+
+        $this->log->log('auth.login', 'Signed in with a two-factor code', null, [], $user);
 
         return ApiResponse::success([
             'user' => new UserResource($user),

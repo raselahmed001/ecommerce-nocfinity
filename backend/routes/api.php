@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController;
@@ -8,10 +9,12 @@ use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\PermissionController;
 use App\Http\Controllers\Api\V1\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\V1\Admin\ProfileController;
+use App\Http\Controllers\Api\V1\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
 use App\Http\Controllers\Api\V1\Admin\TwoFactorController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
+use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartCouponController;
@@ -19,6 +22,7 @@ use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\SiteController;
 use App\Http\Controllers\Api\V1\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +34,7 @@ Route::prefix('v1')->group(function () {
     Route::get('categories', [CategoryController::class, 'index']);
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{slug}', [ProductController::class, 'show']);
+    Route::get('products/{slug}/reviews', [ReviewController::class, 'index']);
 
     // ---- Cart: guests (X-Cart-Token header) and logged-in customers (Bearer token) ----
     Route::prefix('cart')->group(function () {
@@ -47,10 +52,15 @@ Route::prefix('v1')->group(function () {
 
     // ---- Checkout and orders: logged-in customers only ----
     Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
-        Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1');
-        Route::post('checkout/confirm', [CheckoutController::class, 'confirm'])->middleware('throttle:20,1');
+        // Paying needs a verified email address; viewing orders does not.
+        Route::post('checkout', [CheckoutController::class, 'store'])->middleware(['verified', 'throttle:10,1']);
+        Route::post('checkout/confirm', [CheckoutController::class, 'confirm'])->middleware(['verified', 'throttle:20,1']);
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{orderNumber}', [OrderController::class, 'show']);
+
+        // Reviews: only buyers with a verified email can write one.
+        Route::post('products/{slug}/reviews', [ReviewController::class, 'store'])->middleware(['verified', 'throttle:10,1']);
+        Route::delete('products/{slug}/reviews', [ReviewController::class, 'destroy']);
     });
 
     // ---- Customer auth ----
@@ -60,7 +70,12 @@ Route::prefix('v1')->group(function () {
         Route::post('forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:5,1');
         Route::post('reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1');
 
+        // Link from the verification email (signed, so it cannot be changed, and it expires).
+        Route::get('email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+            ->middleware(['signed', 'throttle:6,1'])->name('verification.verify')->whereNumber('id');
+
         Route::middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+            Route::post('email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
             Route::post('logout', [CustomerAuthController::class, 'logout']);
             Route::get('me', [CustomerAuthController::class, 'me']);
         });
@@ -110,6 +125,11 @@ Route::prefix('v1')->group(function () {
             Route::put('categories/{category}', [AdminCategoryController::class, 'update']);
             Route::delete('categories/{category}', [AdminCategoryController::class, 'destroy']);
         });
+
+        // Review moderation and the audit trail
+        Route::get('reviews', [AdminReviewController::class, 'index'])->middleware('can:reviews.manage');
+        Route::delete('reviews/{review}', [AdminReviewController::class, 'destroy'])->middleware('can:reviews.manage');
+        Route::get('activity-logs', [ActivityLogController::class, 'index'])->middleware('can:activity.view');
 
         // Orders
         Route::get('orders', [AdminOrderController::class, 'index'])->middleware('can:orders.view');
